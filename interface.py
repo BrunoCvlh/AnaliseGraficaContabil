@@ -3,36 +3,27 @@ from tkinter import filedialog, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
-
-# Importação dos módulos de lógica e utilitários
 from logica import ProcessadorBalancete
 from utilitarios import converter_csv_para_excel
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
-
 class AppBalancete(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Análise de Balancete Contábil")
-
-        # Abre o programa em modo maximizado
         self.after(0, lambda: self.state('zoomed'))
-
         self.logica = ProcessadorBalancete()
 
-        # --- Layout Principal ---
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # 1. BARRA LATERAL (Sidebar) COM SCROLL
         self.sidebar = ctk.CTkScrollableFrame(self, width=280, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
         ctk.CTkLabel(self.sidebar, text="MENU PRINCIPAL", font=("Arial", 20, "bold")).pack(pady=20)
 
-        # Botões de Upload e Conversão
         self.btn_convert = ctk.CTkButton(self.sidebar, text="Converter Balancete CSV", fg_color="#2c3e50",
                                          command=self.acao_converter)
         self.btn_convert.pack(pady=5, padx=20)
@@ -42,7 +33,6 @@ class AppBalancete(ctk.CTk):
 
         ctk.CTkLabel(self.sidebar, text="---------------------------").pack(pady=10)
 
-        # Filtros de Seleção
         ctk.CTkLabel(self.sidebar, text="Selecionar Plano:").pack(pady=(5, 0))
         self.combo_planos = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
         self.combo_planos.pack(pady=10, padx=20)
@@ -51,14 +41,12 @@ class AppBalancete(ctk.CTk):
         self.combo_contas = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
         self.combo_contas.pack(pady=10, padx=20)
 
-        # Filtros de Data
         ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(15, 0))
         self.ent_data_inicio = ctk.CTkEntry(self.sidebar, placeholder_text="Início: 01-01-2024")
         self.ent_data_inicio.pack(pady=5, padx=20)
         self.ent_data_fim = ctk.CTkEntry(self.sidebar, placeholder_text="Fim: 31-12-2024")
         self.ent_data_fim.pack(pady=5, padx=20)
 
-        # Botões de Filtro
         self.btn_filtrar_data = ctk.CTkButton(self.sidebar, text="Aplicar Filtro", fg_color="#27ae60",
                                               command=self.atualizar_tela)
         self.btn_filtrar_data.pack(pady=10, padx=20)
@@ -67,14 +55,11 @@ class AppBalancete(ctk.CTk):
                                         command=self.limpar_filtros)
         self.btn_limpar.pack(pady=5, padx=20)
 
-        # 2. ELEMENTOS FIXOS NO CANTO INFERIOR ESQUERDO
-        # Texto de Créditos SEM cor de fundo (transparente)
         self.lbl_creditos = ctk.CTkLabel(self, text="Desenvolvido pela GCO",
                                          font=("Arial", 10, "italic"),
                                          fg_color="transparent")
         self.lbl_creditos.place(relx=0.01, rely=0.99, anchor="sw")
 
-        # 3. ÁREA CENTRAL (Gráfico e Detalhamento)
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -88,7 +73,6 @@ class AppBalancete(ctk.CTk):
         self.txt_detalhamento.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
     def limpar_filtros(self):
-        """Reseta os campos de filtro e a visualização."""
         self.combo_planos.set("Todos")
         contas = self.logica.obter_lista_contas_combinada()
         if contas:
@@ -154,7 +138,6 @@ class AppBalancete(ctk.CTk):
             w.destroy()
 
         plt.close('all')
-        # Aumentamos um pouco a margem superior (top) para caber o texto "R$ em Mil"
         fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
         fig.subplots_adjust(top=0.85)
 
@@ -164,14 +147,12 @@ class AppBalancete(ctk.CTk):
 
         ax.plot(x_data, y_data, marker='o', color='#1f77b4', linewidth=2)
 
-        # Adicionando Rótulos de Dados (Data Labels)
         for x, y in zip(x_data, y_data):
-            # Formata o valor para Mil R$ para o rótulo
             label_valor = y / 1000
             ax.annotate(f'{label_valor:,.1f}K'.replace(',', 'X').replace('.', ',').replace('X', '.'),
                         (x, y),
                         textcoords="offset points",
-                        xytext=(0, 10),  # Posiciona 10 pontos acima do marcador
+                        xytext=(0, 10),
                         ha='center',
                         fontsize=9,
                         fontweight='bold',
@@ -185,7 +166,6 @@ class AppBalancete(ctk.CTk):
         ax.yaxis.set_major_formatter(FuncFormatter(mil_format))
         ax.set_title(f"Evolução: {df_plot.iloc[0, 2]}", fontsize=11, fontweight='bold', pad=20)
 
-        # Incluindo o texto "R$ em Mil" no canto superior direito fora do eixo
         ax.text(1.0, 1.05, 'R$ em Mil', transform=ax.transAxes,
                 fontsize=10, verticalalignment='bottom', horizontalalignment='right',
                 style='italic', color='#555555')
@@ -220,7 +200,6 @@ class AppBalancete(ctk.CTk):
                     self.txt_detalhamento.insert("end", linha)
                 except:
                     continue
-
 
 if __name__ == "__main__":
     app = AppBalancete()

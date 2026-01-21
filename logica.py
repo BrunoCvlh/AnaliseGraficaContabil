@@ -3,7 +3,6 @@ import pandas as pd
 class ProcessadorBalancete:
     def __init__(self):
         self.df = None
-        # Mapeamento de colunas para evitar dependência de índice fixo
         self.COL_DATA = 0
         self.COL_CODIGO = 1
         self.COL_NOME = 2
@@ -11,13 +10,11 @@ class ProcessadorBalancete:
         self.COL_PLANO = 10
 
     def carregar_arquivo(self, caminho):
-        # Correção do erro de digitação na variável caminho
         if caminho.endswith('.csv'):
             self.df = pd.read_csv(caminho)
         else:
             self.df = pd.read_excel(caminho)
 
-        # Conversão segura de datas
         self.df.iloc[:, self.COL_DATA] = pd.to_datetime(self.df.iloc[:, self.COL_DATA]).dt.date
         self.df.iloc[:, self.COL_CODIGO] = self.df.iloc[:, self.COL_CODIGO].astype(str).str.strip()
         self.df.iloc[:, self.COL_NOME] = self.df.iloc[:, self.COL_NOME].astype(str).str.strip()
