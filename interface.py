@@ -3,11 +3,16 @@ from tkinter import filedialog, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
+import io
+from PIL import Image
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
 from logica import ProcessadorBalancete
 from utilitarios import converter_csv_para_excel
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
+
 
 class AppBalancete(ctk.CTk):
     def __init__(self):
@@ -15,6 +20,7 @@ class AppBalancete(ctk.CTk):
         self.title("Análise de Balancete Contábil")
         self.after(0, lambda: self.state('zoomed'))
         self.logica = ProcessadorBalancete()
+        self.figura_atual = None  # Armazena a figura para exportação
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -54,6 +60,10 @@ class AppBalancete(ctk.CTk):
         self.btn_limpar = ctk.CTkButton(self.sidebar, text="Limpar Filtros", fg_color="#e74c3c",
                                         command=self.limpar_filtros)
         self.btn_limpar.pack(pady=5, padx=20)
+
+        self.btn_exportar = ctk.CTkButton(self.sidebar, text="Exportar Resumo (PDF)", fg_color="#8e44ad",
+                                          command=self.acao_exportar_pdf)
+        self.btn_exportar.pack(pady=5, padx=20)
 
         self.lbl_creditos = ctk.CTkLabel(self, text="Desenvolvido pela GCO",
                                          font=("Arial", 10, "italic"),
@@ -109,6 +119,59 @@ class AppBalancete(ctk.CTk):
             else:
                 messagebox.showerror("Erro", f"Falha: {resultado}")
 
+    def acao_exportar_pdf(self):
+        selecao = self.combo_contas.get()
+        if not selecao or not self.figura_atual:
+            messagebox.showwarning("Aviso", "Não há dados ou gráfico para exportar.")
+            return
+
+        pasta_downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+        nome_pdf = f"Resumo_{selecao.split(' - ')[0]}.pdf"
+        caminho_pdf = os.path.join(pasta_downloads, nome_pdf)
+
+        try:
+            # Uso da figura armazenada para evitar o erro 'Canvas'
+            buffer_img = io.BytesIO()
+            self.figura_atual.savefig(buffer_img, format='png', bbox_inches='tight', dpi=150)
+            buffer_img.seek(0)
+            img_grafico = Image.open(buffer_img)
+
+            c = canvas.Canvas(caminho_pdf, pagesize=A4)
+            largura, altura = A4
+
+            c.setFont("Helvetica-Bold", 16)
+            c.drawString(50, altura - 50, f"Relatório: {selecao}")
+            c.setFont("Helvetica", 10)
+            info = f"Plano: {self.combo_planos.get()} | Filtro: {self.ent_data_inicio.get()} a {self.ent_data_fim.get()}"
+            c.drawString(50, altura - 65, info)
+            c.line(50, altura - 70, largura - 50, altura - 70)
+
+            img_w, img_h = img_grafico.size
+            aspect = img_h / float(img_w)
+            larg_disp = largura - 100
+            alt_disp = larg_disp * aspect
+            c.drawInlineImage(img_grafico, 50, altura - 80 - alt_disp, width=larg_disp, height=alt_disp)
+
+            y_pos = altura - 100 - alt_disp
+            c.setFont("Courier-Bold", 10)
+            c.drawString(50, y_pos, "DETALHAMENTO:")
+            y_pos -= 20
+
+            c.setFont("Courier", 8)
+            linhas = self.txt_detalhamento.get("1.0", "end").split('\n')
+            for linha in linhas:
+                if y_pos < 50:
+                    c.showPage()
+                    y_pos = altura - 50
+                    c.setFont("Courier", 8)
+                c.drawString(50, y_pos, linha)
+                y_pos -= 12
+
+            c.save()
+            messagebox.showinfo("Sucesso", f"PDF gerado em Downloads:\n{nome_pdf}")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao exportar PDF: {e}")
+
     def atualizar_tela(self, _=None):
         selecao = self.combo_contas.get()
         plano = self.combo_planos.get()
@@ -139,6 +202,7 @@ class AppBalancete(ctk.CTk):
 
         plt.close('all')
         fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
+        self.figura_atual = fig  # Armazena para exportação posterior
         fig.subplots_adjust(top=0.85)
 
         df_plot = df_f.sort_values(by=df_f.columns[0])
@@ -174,9 +238,9 @@ class AppBalancete(ctk.CTk):
         plt.xticks(rotation=45)
         plt.tight_layout()
 
-        canvas = FigureCanvasTkAgg(fig, master=self.graph_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True)
+        canvas_mc = FigureCanvasTkAgg(fig, master=self.graph_frame)
+        canvas_mc.draw()
+        canvas_mc.get_tk_widget().pack(fill="both", expand=True)
 
     def preencher_detalhes(self, df_f):
         self.txt_detalhamento.delete("1.0", "end")
@@ -200,6 +264,7 @@ class AppBalancete(ctk.CTk):
                     self.txt_detalhamento.insert("end", linha)
                 except:
                     continue
+
 
 if __name__ == "__main__":
     app = AppBalancete()
