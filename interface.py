@@ -20,13 +20,12 @@ class AppBalancete(ctk.CTk):
         self.title("Análise de Balancete Contábil")
         self.after(0, lambda: self.state('zoomed'))
         self.logica = ProcessadorBalancete()
-        self.figura_atual = None  # Armazena a figura para exportação
-        self.todas_contas = []  # Lista mestre para os filtros
+        self.figura_atual = None
+        self.todas_contas = []
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # --- BARRA LATERAL ---
         self.sidebar = ctk.CTkScrollableFrame(self, width=280, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
@@ -45,20 +44,17 @@ class AppBalancete(ctk.CTk):
         self.combo_planos = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
         self.combo_planos.pack(pady=10, padx=20)
 
-        # --- CONTA 1 ---
         ctk.CTkLabel(self.sidebar, text="Conta Principal:").pack(pady=(5, 0))
         self.combo_contas = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
         self.combo_contas.pack(pady=10, padx=20)
         self.combo_contas._entry.bind("<KeyRelease>", self.filtrar_combo_contas)
 
-        # --- CONTA 2 (COMPARATIVO) ---
         ctk.CTkLabel(self.sidebar, text="Comparar com (Opcional):").pack(pady=(5, 0))
         self.combo_contas_2 = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(),
                                               width=220)
         self.combo_contas_2.set("")
         self.combo_contas_2.pack(pady=10, padx=20)
         self.combo_contas_2._entry.bind("<KeyRelease>", self.filtrar_combo_contas_2)
-        # -----------------------------
 
         ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(15, 0))
         self.ent_data_inicio = ctk.CTkEntry(self.sidebar, placeholder_text="Início: 01-01-2024")
@@ -83,7 +79,6 @@ class AppBalancete(ctk.CTk):
                                          fg_color="transparent")
         self.lbl_creditos.place(relx=0.01, rely=0.99, anchor="sw")
 
-        # --- ÁREA PRINCIPAL ---
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -96,7 +91,6 @@ class AppBalancete(ctk.CTk):
         self.txt_detalhamento = ctk.CTkTextbox(self.main_frame, font=("Courier New", 13))
         self.txt_detalhamento.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
-    # --- LÓGICA DE FILTROS DINÂMICOS ---
     def filtrar_combo_contas(self, event):
         self._filtrar_generico(self.combo_contas)
 
@@ -112,8 +106,6 @@ class AppBalancete(ctk.CTk):
         else:
             filtrada = [i for i in self.todas_contas if texto in i.lower()]
             widget_combo.configure(values=filtrada)
-
-    # -----------------------------------
 
     def limpar_filtros(self):
         self.combo_planos.set("Todos")
@@ -256,7 +248,6 @@ class AppBalancete(ctk.CTk):
         self.figura_atual = fig
         fig.subplots_adjust(top=0.85)
 
-        # LINHA 1
         df_plot1 = df1.sort_values(by=df1.columns[0])
         x1 = df_plot1.iloc[:, 0]
         y1 = df_plot1.iloc[:, 8]
@@ -269,7 +260,6 @@ class AppBalancete(ctk.CTk):
                         (x, y), textcoords="offset points", xytext=(0, 10), ha='center',
                         fontsize=9, fontweight='bold', color='#1f77b4')
 
-        # LINHA 2
         if df2 is not None and not df2.empty:
             df_plot2 = df2.sort_values(by=df2.columns[0])
             x2 = df_plot2.iloc[:, 0]
@@ -318,7 +308,6 @@ class AppBalancete(ctk.CTk):
 
         header = f"{'CÓDIGO (B)':<25} | {'NOME (C)':<22} | {'PLANO':<10} | {'PERÍODO':<10} | {'SALDO (I)':<15} | {'% (P)':<10}\n"
 
-        # --- FUNÇÃO INTERNA PARA GERAR O TEXTO DE CADA CONTA ---
         def _gerar_bloco_texto(df_alvo, titulo_secao):
             texto_saida = f"\n=== {titulo_secao} ===\n"
             texto_saida += header + "-" * 115 + "\n"
@@ -326,11 +315,7 @@ class AppBalancete(ctk.CTk):
             if df_alvo.empty:
                 return texto_saida + "Nenhum dado para esta conta.\n"
 
-            # --- NOVO: Agrupa os valores da conta pai por DATA ---
-            # Cria um dicionário {Data: Valor_Total}
-            # Isso garante que a % seja calculada baseada no valor do mês/período correto
             dict_valores_pai = df_alvo.groupby(df_alvo.columns[0])[df_alvo.columns[8]].sum().to_dict()
-            # ---------------------------------------------------
 
             df_filhas = self.logica.obter_contas_filhas(df_alvo, plano_ativo, d_ini, d_fim)
 
@@ -345,20 +330,17 @@ class AppBalancete(ctk.CTk):
 
             for _, row in df_filhas.iterrows():
                 try:
-                    data_atual = row.iloc[0]  # Data (Objeto ou Timestamp)
+                    data_atual = row.iloc[0]
                     periodo = data_atual.strftime('%d/%m/%Y') if hasattr(data_atual, 'strftime') else str(data_atual)
                     valor = float(row.iloc[8])
                     saldo = f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
-                    # --- NOVO: Cálculo do Percentual por Período ---
-                    # Busca o valor da conta pai correspondente à data atual
                     valor_pai_periodo = dict_valores_pai.get(data_atual, 0)
 
                     percentual = 0.0
                     if valor_pai_periodo != 0:
                         percentual = (valor / valor_pai_periodo) * 100
                     str_perc = f"{percentual:,.2f}%".replace('.', ',')
-                    # -----------------------------------------------
 
                     codigo_original = str(row.iloc[1])
                     tamanho_atual = len(codigo_original.rstrip('0'))
@@ -372,7 +354,6 @@ class AppBalancete(ctk.CTk):
                     continue
             return texto_saida
 
-        # --- GERAÇÃO DOS BLOCOS ---
         texto_final = _gerar_bloco_texto(df1, f"PRINCIPAL: {self.combo_contas.get().split(' - ')[0]}")
 
         if df2 is not None and not df2.empty:

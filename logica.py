@@ -4,7 +4,6 @@ import pandas as pd
 class ProcessadorBalancete:
     def __init__(self):
         self.df = None
-        # Índices das colunas baseados no Excel padrão
         self.COL_DATA = 0
         self.COL_CODIGO = 1
         self.COL_NOME = 2
@@ -17,12 +16,10 @@ class ProcessadorBalancete:
         else:
             self.df = pd.read_excel(caminho)
 
-        # Tratamento inicial
         self.df.iloc[:, self.COL_DATA] = pd.to_datetime(self.df.iloc[:, self.COL_DATA]).dt.date
         self.df.iloc[:, self.COL_CODIGO] = self.df.iloc[:, self.COL_CODIGO].astype(str).str.strip()
         self.df.iloc[:, self.COL_NOME] = self.df.iloc[:, self.COL_NOME].astype(str).str.strip()
 
-        # Cria coluna auxiliar para exibição no combobox
         self.df['display_conta'] = self.df.iloc[:, self.COL_CODIGO] + " - " + self.df.iloc[:, self.COL_NOME]
         return self.df
 
@@ -48,7 +45,6 @@ class ProcessadorBalancete:
 
     def filtrar_por_periodo(self, df_f, data_inicio, data_fim):
         try:
-            # Garante formato datetime para comparação
             df_f.iloc[:, self.COL_DATA] = pd.to_datetime(df_f.iloc[:, self.COL_DATA])
             dt_ini = pd.to_datetime(data_inicio, dayfirst=True)
             dt_fim = pd.to_datetime(data_fim, dayfirst=True)
@@ -61,13 +57,11 @@ class ProcessadorBalancete:
     def obter_contas_filhas(self, df_f, nome_plano=None, data_inicio=None, data_fim=None):
         if df_f.empty: return df_f
 
-        # Pega o código da conta "mãe" selecionada
         codigo_mae = str(df_f.iloc[0, self.COL_CODIGO]).rstrip('0')
 
-        # Filtra na base geral quem começa com o código da mãe
         df_filhas = self.df[
             (self.df.iloc[:, self.COL_CODIGO].str.startswith(codigo_mae)) &
-            (self.df.iloc[:, self.COL_CODIGO] != df_f.iloc[0, self.COL_CODIGO])  # Exclui a própria mãe da lista
+            (self.df.iloc[:, self.COL_CODIGO] != df_f.iloc[0, self.COL_CODIGO])
             ]
 
         if nome_plano and nome_plano != "Todos":
