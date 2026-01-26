@@ -22,6 +22,9 @@ class AppBalancete(ctk.CTk):
         self.logica = ProcessadorBalancete()
         self.figura_atual = None  # Armazena a figura para exportação
 
+        # Variável para armazenar a lista completa para o filtro
+        self.todas_contas = []
+
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
@@ -46,6 +49,10 @@ class AppBalancete(ctk.CTk):
         ctk.CTkLabel(self.sidebar, text="Pesquisar Código ou Nome:").pack(pady=(5, 0))
         self.combo_contas = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
         self.combo_contas.pack(pady=10, padx=20)
+
+        # --- NOVO: Vínculo do evento de digitação para filtrar ---
+        self.combo_contas._entry.bind("<KeyRelease>", self.filtrar_combo_contas)
+        # ---------------------------------------------------------
 
         ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(15, 0))
         self.ent_data_inicio = ctk.CTkEntry(self.sidebar, placeholder_text="Início: 01-01-2024")
@@ -82,12 +89,33 @@ class AppBalancete(ctk.CTk):
         self.txt_detalhamento = ctk.CTkTextbox(self.main_frame, font=("Courier New", 13))
         self.txt_detalhamento.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
+    # --- NOVO MÉTODO: Filtra as opções conforme o usuário digita ---
+    def filtrar_combo_contas(self, event):
+        texto_digitado = self.combo_contas.get().lower()
+
+        if not self.todas_contas:
+            return
+
+        if texto_digitado == "":
+            self.combo_contas.configure(values=self.todas_contas)
+        else:
+            lista_filtrada = [
+                item for item in self.todas_contas
+                if texto_digitado in item.lower()
+            ]
+            self.combo_contas.configure(values=lista_filtrada)
+
+    # ---------------------------------------------------------------
+
     def limpar_filtros(self):
         self.combo_planos.set("Todos")
         contas = self.logica.obter_lista_contas_combinada()
         if contas:
+            # Atualiza a lista mestre e o combo
+            self.todas_contas = contas
             self.combo_contas.set(contas[0])
-            self.combo_contas.configure(values=contas)
+            self.combo_contas.configure(values=self.todas_contas)
+
         self.ent_data_inicio.delete(0, 'end')
         self.ent_data_fim.delete(0, 'end')
         self.atualizar_tela()
@@ -98,7 +126,11 @@ class AppBalancete(ctk.CTk):
             try:
                 self.logica.carregar_arquivo(caminho)
                 contas_combinadas = self.logica.obter_lista_contas_combinada()
-                self.combo_contas.configure(values=contas_combinadas)
+
+                # Armazena a lista completa na variável auxiliar
+                self.todas_contas = contas_combinadas
+                self.combo_contas.configure(values=self.todas_contas)
+
                 planos = ["Todos"] + self.logica.obter_lista_planos()
                 self.combo_planos.configure(values=planos)
 
