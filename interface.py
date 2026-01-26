@@ -21,13 +21,12 @@ class AppBalancete(ctk.CTk):
         self.after(0, lambda: self.state('zoomed'))
         self.logica = ProcessadorBalancete()
         self.figura_atual = None  # Armazena a figura para exportação
-
-        # Variável para armazenar a lista completa para o filtro
-        self.todas_contas = []
+        self.todas_contas = []  # Lista mestre para os filtros
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
+        # --- BARRA LATERAL ---
         self.sidebar = ctk.CTkScrollableFrame(self, width=280, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
@@ -46,13 +45,20 @@ class AppBalancete(ctk.CTk):
         self.combo_planos = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
         self.combo_planos.pack(pady=10, padx=20)
 
-        ctk.CTkLabel(self.sidebar, text="Pesquisar Código ou Nome:").pack(pady=(5, 0))
+        # --- CONTA 1 ---
+        ctk.CTkLabel(self.sidebar, text="Conta Principal:").pack(pady=(5, 0))
         self.combo_contas = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
         self.combo_contas.pack(pady=10, padx=20)
-
-        # --- NOVO: Vínculo do evento de digitação para filtrar ---
         self.combo_contas._entry.bind("<KeyRelease>", self.filtrar_combo_contas)
-        # ---------------------------------------------------------
+
+        # --- CONTA 2 (COMPARATIVO) ---
+        ctk.CTkLabel(self.sidebar, text="Comparar com (Opcional):").pack(pady=(5, 0))
+        self.combo_contas_2 = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(),
+                                              width=220)
+        self.combo_contas_2.set("")
+        self.combo_contas_2.pack(pady=10, padx=20)
+        self.combo_contas_2._entry.bind("<KeyRelease>", self.filtrar_combo_contas_2)
+        # -----------------------------
 
         ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(15, 0))
         self.ent_data_inicio = ctk.CTkEntry(self.sidebar, placeholder_text="Início: 01-01-2024")
@@ -77,6 +83,7 @@ class AppBalancete(ctk.CTk):
                                          fg_color="transparent")
         self.lbl_creditos.place(relx=0.01, rely=0.99, anchor="sw")
 
+        # --- ÁREA PRINCIPAL ---
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -89,32 +96,34 @@ class AppBalancete(ctk.CTk):
         self.txt_detalhamento = ctk.CTkTextbox(self.main_frame, font=("Courier New", 13))
         self.txt_detalhamento.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
-    # --- NOVO MÉTODO: Filtra as opções conforme o usuário digita ---
+    # --- LÓGICA DE FILTROS DINÂMICOS ---
     def filtrar_combo_contas(self, event):
-        texto_digitado = self.combo_contas.get().lower()
+        self._filtrar_generico(self.combo_contas)
 
-        if not self.todas_contas:
-            return
+    def filtrar_combo_contas_2(self, event):
+        self._filtrar_generico(self.combo_contas_2)
 
-        if texto_digitado == "":
-            self.combo_contas.configure(values=self.todas_contas)
+    def _filtrar_generico(self, widget_combo):
+        texto = widget_combo.get().lower()
+        if not self.todas_contas: return
+
+        if texto == "":
+            widget_combo.configure(values=self.todas_contas)
         else:
-            lista_filtrada = [
-                item for item in self.todas_contas
-                if texto_digitado in item.lower()
-            ]
-            self.combo_contas.configure(values=lista_filtrada)
+            filtrada = [i for i in self.todas_contas if texto in i.lower()]
+            widget_combo.configure(values=filtrada)
 
-    # ---------------------------------------------------------------
+    # -----------------------------------
 
     def limpar_filtros(self):
         self.combo_planos.set("Todos")
         contas = self.logica.obter_lista_contas_combinada()
         if contas:
-            # Atualiza a lista mestre e o combo
             self.todas_contas = contas
             self.combo_contas.set(contas[0])
             self.combo_contas.configure(values=self.todas_contas)
+            self.combo_contas_2.set("")
+            self.combo_contas_2.configure(values=self.todas_contas)
 
         self.ent_data_inicio.delete(0, 'end')
         self.ent_data_fim.delete(0, 'end')
@@ -127,9 +136,11 @@ class AppBalancete(ctk.CTk):
                 self.logica.carregar_arquivo(caminho)
                 contas_combinadas = self.logica.obter_lista_contas_combinada()
 
-                # Armazena a lista completa na variável auxiliar
                 self.todas_contas = contas_combinadas
+
                 self.combo_contas.configure(values=self.todas_contas)
+                self.combo_contas_2.configure(values=self.todas_contas)
+                self.combo_contas_2.set("")
 
                 planos = ["Todos"] + self.logica.obter_lista_planos()
                 self.combo_planos.configure(values=planos)
@@ -162,7 +173,6 @@ class AppBalancete(ctk.CTk):
         caminho_pdf = os.path.join(pasta_downloads, nome_pdf)
 
         try:
-            # Uso da figura armazenada para evitar o erro 'Canvas'
             buffer_img = io.BytesIO()
             self.figura_atual.savefig(buffer_img, format='png', bbox_inches='tight', dpi=150)
             buffer_img.seek(0)
@@ -172,7 +182,7 @@ class AppBalancete(ctk.CTk):
             largura, altura = A4
 
             c.setFont("Helvetica-Bold", 16)
-            c.drawString(50, altura - 50, f"Relatório: {selecao}")
+            c.drawString(50, altura - 50, f"Relatório de Análise")
             c.setFont("Helvetica", 10)
             info = f"Plano: {self.combo_planos.get()} | Filtro: {self.ent_data_inicio.get()} a {self.ent_data_fim.get()}"
             c.drawString(50, altura - 65, info)
@@ -205,54 +215,73 @@ class AppBalancete(ctk.CTk):
             messagebox.showerror("Erro", f"Falha ao exportar PDF: {e}")
 
     def atualizar_tela(self, _=None):
-        selecao = self.combo_contas.get()
+        selecao1 = self.combo_contas.get()
+        selecao2 = self.combo_contas_2.get()
         plano = self.combo_planos.get()
-        if not selecao: return
 
-        df_f = self.logica.filtrar_dados(selecao, plano)
+        if not selecao1: return
+
+        df1 = self.logica.filtrar_dados(selecao1, plano)
+
+        df2 = None
+        if selecao2 and selecao2 in self.todas_contas and selecao2 != "":
+            df2 = self.logica.filtrar_dados(selecao2, plano)
+
         d_ini = self.ent_data_inicio.get()
         d_fim = self.ent_data_fim.get()
 
         if d_ini and d_fim:
             try:
-                df_f = self.logica.filtrar_por_periodo(df_f, d_ini, d_fim)
+                df1 = self.logica.filtrar_por_periodo(df1, d_ini, d_fim)
+                if df2 is not None:
+                    df2 = self.logica.filtrar_por_periodo(df2, d_ini, d_fim)
             except Exception as e:
                 messagebox.showwarning("Aviso", str(e))
                 return
 
-        if not df_f.empty:
-            self.desenhar_grafico(df_f)
-            self.preencher_detalhes(df_f)
+        if not df1.empty:
+            self.desenhar_grafico(df1, df2, selecao1, selecao2)
+            self.preencher_detalhes(df1, df2)
         else:
             self.txt_detalhamento.delete("1.0", "end")
             self.txt_detalhamento.insert("end", "Nenhum dado encontrado.")
 
-    def desenhar_grafico(self, df_f):
+    def desenhar_grafico(self, df1, df2=None, nome1="", nome2=""):
         from matplotlib.ticker import FuncFormatter
         for w in self.graph_frame.winfo_children():
             w.destroy()
 
         plt.close('all')
         fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
-        self.figura_atual = fig  # Armazena para exportação posterior
+        self.figura_atual = fig
         fig.subplots_adjust(top=0.85)
 
-        df_plot = df_f.sort_values(by=df_f.columns[0])
-        x_data = df_plot.iloc[:, 0]
-        y_data = df_plot.iloc[:, 8]
+        # LINHA 1
+        df_plot1 = df1.sort_values(by=df1.columns[0])
+        x1 = df_plot1.iloc[:, 0]
+        y1 = df_plot1.iloc[:, 8]
 
-        ax.plot(x_data, y_data, marker='o', color='#1f77b4', linewidth=2)
+        line1, = ax.plot(x1, y1, marker='o', color='#1f77b4', linewidth=2, label=nome1.split(' - ')[0])
 
-        for x, y in zip(x_data, y_data):
+        for x, y in zip(x1, y1):
             label_valor = y / 1000
             ax.annotate(f'{label_valor:,.1f}K'.replace(',', 'X').replace('.', ',').replace('X', '.'),
-                        (x, y),
-                        textcoords="offset points",
-                        xytext=(0, 10),
-                        ha='center',
-                        fontsize=9,
-                        fontweight='bold',
-                        color='#2c3e50')
+                        (x, y), textcoords="offset points", xytext=(0, 10), ha='center',
+                        fontsize=9, fontweight='bold', color='#1f77b4')
+
+        # LINHA 2
+        if df2 is not None and not df2.empty:
+            df_plot2 = df2.sort_values(by=df2.columns[0])
+            x2 = df_plot2.iloc[:, 0]
+            y2 = df_plot2.iloc[:, 8]
+
+            line2, = ax.plot(x2, y2, marker='s', color='#ff7f0e', linewidth=2, label=nome2.split(' - ')[0])
+
+            for x, y in zip(x2, y2):
+                label_valor = y / 1000
+                ax.annotate(f'{label_valor:,.1f}K'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+                            (x, y), textcoords="offset points", xytext=(0, -15), ha='center',
+                            fontsize=9, fontweight='bold', color='#ff7f0e')
 
         def mil_format(x, pos=None):
             if abs(x) >= 1000:
@@ -260,7 +289,13 @@ class AppBalancete(ctk.CTk):
             return f'R$ {x:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
 
         ax.yaxis.set_major_formatter(FuncFormatter(mil_format))
-        ax.set_title(f"Evolução: {df_plot.iloc[0, 2]}", fontsize=11, fontweight='bold', pad=20)
+
+        titulo = f"Evolução: {df_plot1.iloc[0, 2]}"
+        if df2 is not None and not df2.empty:
+            titulo += "  vs  " + df_plot2.iloc[0, 2]
+
+        ax.set_title(titulo, fontsize=10, fontweight='bold', pad=20)
+        ax.legend(loc='upper left', fontsize=8)
 
         ax.text(1.0, 1.05, 'R$ em Mil', transform=ax.transAxes,
                 fontsize=10, verticalalignment='bottom', horizontalalignment='right',
@@ -274,51 +309,57 @@ class AppBalancete(ctk.CTk):
         canvas_mc.draw()
         canvas_mc.get_tk_widget().pack(fill="both", expand=True)
 
-    def preencher_detalhes(self, df_f):
+    def preencher_detalhes(self, df1, df2=None):
         self.txt_detalhamento.delete("1.0", "end")
+
         plano_ativo = self.combo_planos.get()
         d_ini = self.ent_data_inicio.get()
         d_fim = self.ent_data_fim.get()
 
-        # 1. Calcula o valor total da conta pai selecionada para base do percentual
-        if df_f.empty:
-            valor_pai = 0
-        else:
-            valor_pai = df_f.iloc[:, 8].sum()
-
-        df_filhas = self.logica.obter_contas_filhas(df_f, plano_ativo, d_ini, d_fim)
-
         header = f"{'CÓDIGO (B)':<25} | {'NOME (C)':<22} | {'PLANO':<10} | {'PERÍODO':<10} | {'SALDO (I)':<15} | {'% (P)':<10}\n"
-        self.txt_detalhamento.insert("end", header + "-" * 115 + "\n")
 
-        if df_filhas.empty:
-            self.txt_detalhamento.insert("end", "Nenhuma subconta encontrada.")
-        else:
-            # --- NOVA ORDENAÇÃO ---
-            # Ordena primeiro pela Data (coluna 0) para agrupar os períodos.
-            # Depois pelo Código (coluna 1) para manter a organização visual das contas.
+        # --- FUNÇÃO INTERNA PARA GERAR O TEXTO DE CADA CONTA ---
+        def _gerar_bloco_texto(df_alvo, titulo_secao):
+            texto_saida = f"\n=== {titulo_secao} ===\n"
+            texto_saida += header + "-" * 115 + "\n"
+
+            if df_alvo.empty:
+                return texto_saida + "Nenhum dado para esta conta.\n"
+
+            # --- NOVO: Agrupa os valores da conta pai por DATA ---
+            # Cria um dicionário {Data: Valor_Total}
+            # Isso garante que a % seja calculada baseada no valor do mês/período correto
+            dict_valores_pai = df_alvo.groupby(df_alvo.columns[0])[df_alvo.columns[8]].sum().to_dict()
+            # ---------------------------------------------------
+
+            df_filhas = self.logica.obter_contas_filhas(df_alvo, plano_ativo, d_ini, d_fim)
+
+            if df_filhas.empty:
+                return texto_saida + "Nenhuma subconta encontrada.\n"
+
             df_filhas = df_filhas.sort_values(by=[df_filhas.columns[0], df_filhas.columns[1]])
-            # ----------------------
 
-            # Lógica de Indentação
             lista_codigos = [str(row.iloc[1]) for _, row in df_filhas.iterrows()]
             tamanhos = [len(c.rstrip('0')) for c in lista_codigos]
             min_len = min(tamanhos) if tamanhos else 0
 
             for _, row in df_filhas.iterrows():
                 try:
-                    periodo = row.iloc[0].strftime('%d/%m/%Y') if hasattr(row.iloc[0], 'strftime') else str(row.iloc[0])
+                    data_atual = row.iloc[0]  # Data (Objeto ou Timestamp)
+                    periodo = data_atual.strftime('%d/%m/%Y') if hasattr(data_atual, 'strftime') else str(data_atual)
                     valor = float(row.iloc[8])
                     saldo = f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
-                    # Cálculo do Percentual
+                    # --- NOVO: Cálculo do Percentual por Período ---
+                    # Busca o valor da conta pai correspondente à data atual
+                    valor_pai_periodo = dict_valores_pai.get(data_atual, 0)
+
                     percentual = 0.0
-                    if valor_pai != 0:
-                        percentual = (valor / valor_pai) * 100
-
+                    if valor_pai_periodo != 0:
+                        percentual = (valor / valor_pai_periodo) * 100
                     str_perc = f"{percentual:,.2f}%".replace('.', ',')
+                    # -----------------------------------------------
 
-                    # Aplicação da Indentação
                     codigo_original = str(row.iloc[1])
                     tamanho_atual = len(codigo_original.rstrip('0'))
                     qtde_espacos = (tamanho_atual - min_len)
@@ -326,9 +367,20 @@ class AppBalancete(ctk.CTk):
                     codigo_visual = f"{espacos}{codigo_original}"
 
                     linha = f"{codigo_visual:<25} | {str(row.iloc[2])[:22]:<22} | {str(row.iloc[10])[:10]:<10} | {periodo:<10} | {saldo:<15} | {str_perc:<10}\n"
-                    self.txt_detalhamento.insert("end", linha)
+                    texto_saida += linha
                 except:
                     continue
+            return texto_saida
+
+        # --- GERAÇÃO DOS BLOCOS ---
+        texto_final = _gerar_bloco_texto(df1, f"PRINCIPAL: {self.combo_contas.get().split(' - ')[0]}")
+
+        if df2 is not None and not df2.empty:
+            texto_final += "\n" + ("." * 115) + "\n"
+            texto_final += _gerar_bloco_texto(df2, f"COMPARATIVO: {self.combo_contas_2.get().split(' - ')[0]}")
+
+        self.txt_detalhamento.insert("end", texto_final)
+
 
 if __name__ == "__main__":
     app = AppBalancete()
