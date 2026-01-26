@@ -281,22 +281,45 @@ class AppBalancete(ctk.CTk):
         d_fim = self.ent_data_fim.get()
 
         df_filhas = self.logica.obter_contas_filhas(df_f, plano_ativo, d_ini, d_fim)
-        header = f"{'CÓDIGO (B)':<15} | {'NOME (C)':<25} | {'PLANO (K)':<18} | {'PERÍODO (A)':<12} | {'SALDO (I)':<15}\n"
+
+        # Aumentei a coluna CÓDIGO de 15 para 25 para acomodar a indentação visual sem quebrar o alinhamento
+        header = f"{'CÓDIGO (B)':<25} | {'NOME (C)':<25} | {'PLANO (K)':<18} | {'PERÍODO (A)':<12} | {'SALDO (I)':<15}\n"
         self.txt_detalhamento.insert("end", header + "-" * 110 + "\n")
 
         if df_filhas.empty:
             self.txt_detalhamento.insert("end", "Nenhuma subconta encontrada.")
         else:
+            # --- LÓGICA DE INDENTAÇÃO ---
+            # 1. Cria uma lista temporária apenas para calcular os tamanhos "reais" (sem zeros à direita)
+            lista_codigos = [str(row.iloc[1]) for _, row in df_filhas.iterrows()]
+            tamanhos = [len(c.rstrip('0')) for c in lista_codigos]
+
+            # 2. Define o tamanho mínimo encontrado como a "base" (indentação zero)
+            min_len = min(tamanhos) if tamanhos else 0
+
             for _, row in df_filhas.iterrows():
                 try:
                     periodo = row.iloc[0].strftime('%d/%m/%Y') if hasattr(row.iloc[0], 'strftime') else str(row.iloc[0])
                     valor = float(row.iloc[8])
                     saldo = f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-                    linha = f"{str(row.iloc[1]):<15} | {str(row.iloc[2])[:25]:<25} | {str(row.iloc[10])[:18]:<18} | {periodo:<12} | {saldo:<15}\n"
+
+                    # 3. Calcula a indentação para a linha atual
+                    codigo_original = str(row.iloc[1])
+                    tamanho_atual = len(codigo_original.rstrip('0'))
+
+                    # A diferença entre o tamanho atual e o mínimo define quantos espaços usar.
+                    # Exemplo: Se '2020101' tem diff 2 para '202010101', adicionará 2 espaços.
+                    qtde_espacos = (tamanho_atual - min_len)
+                    espacos = " " * qtde_espacos
+
+                    # Aplica os espaços antes do código
+                    codigo_visual = f"{espacos}{codigo_original}"
+
+                    # Renderiza a linha com o código indentado (ajustado para <25 espaços)
+                    linha = f"{codigo_visual:<25} | {str(row.iloc[2])[:25]:<25} | {str(row.iloc[10])[:18]:<18} | {periodo:<12} | {saldo:<15}\n"
                     self.txt_detalhamento.insert("end", linha)
                 except:
                     continue
-
 
 if __name__ == "__main__":
     app = AppBalancete()
