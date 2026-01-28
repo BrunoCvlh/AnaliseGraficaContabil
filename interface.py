@@ -7,6 +7,7 @@ import io
 from PIL import Image
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+# Supondo que estes módulos existam no seu projeto
 from logica import ProcessadorBalancete
 from utilitarios import converter_csv_para_excel
 
@@ -18,6 +19,14 @@ class AppBalancete(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Análise de Balancete Contábil")
+
+        # 1. Ajuste Responsivo Automático
+        # Se a altura da tela for de notebook (geralmente < 800px), reduz a escala dos widgets em 15%
+        screen_height = self.winfo_screenheight()
+        if screen_height < 860:
+            ctk.set_widget_scaling(0.85)
+            ctk.set_window_scaling(0.85)
+
         self.after(0, lambda: self.state('zoomed'))
         self.logica = ProcessadorBalancete()
         self.figura_atual = None
@@ -26,59 +35,75 @@ class AppBalancete(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.sidebar = ctk.CTkScrollableFrame(self, width=280, corner_radius=0)
+        # 2. Container Lateral (Estrutura Fixa)
+        # Substituímos o sidebar direto por um Frame Container para dividir Menu e Rodapé
+        self.left_container = ctk.CTkFrame(self, width=280, corner_radius=0)
+        self.left_container.grid(row=0, column=0, sticky="nsew")
+
+        # O menu ocupa todo o espaço disponível (weight=1), empurrando o rodapé para baixo
+        self.left_container.grid_rowconfigure(0, weight=1)
+        self.left_container.grid_rowconfigure(1, weight=0)
+
+        # Menu Rolável (Fica na linha 0 do container)
+        self.sidebar = ctk.CTkScrollableFrame(self.left_container, width=280, corner_radius=0, fg_color="transparent")
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
-        ctk.CTkLabel(self.sidebar, text="MENU PRINCIPAL", font=("Arial", 20, "bold")).pack(pady=20)
+        # --- ITENS DO MENU (Com pady reduzido para telas menores) ---
+        pad_y_padrao = 5 if screen_height < 800 else 10  # Padding dinâmico
+
+        ctk.CTkLabel(self.sidebar, text="MENU PRINCIPAL", font=("Arial", 20, "bold")).pack(pady=(20, 10))
 
         self.btn_convert = ctk.CTkButton(self.sidebar, text="Converter Balancete CSV", fg_color="#2c3e50",
                                          command=self.acao_converter)
-        self.btn_convert.pack(pady=5, padx=20)
+        self.btn_convert.pack(pady=pad_y_padrao, padx=20)
 
         self.btn_upload = ctk.CTkButton(self.sidebar, text="Incluir Arquivo Excel", command=self.acao_upload)
-        self.btn_upload.pack(pady=5, padx=20)
+        self.btn_upload.pack(pady=pad_y_padrao, padx=20)
 
-        ctk.CTkLabel(self.sidebar, text="---------------------------").pack(pady=10)
+        ctk.CTkLabel(self.sidebar, text="---------------------------").pack(pady=5)
 
         ctk.CTkLabel(self.sidebar, text="Selecionar Plano:").pack(pady=(5, 0))
         self.combo_planos = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
-        self.combo_planos.pack(pady=10, padx=20)
+        self.combo_planos.pack(pady=pad_y_padrao, padx=20)
 
         ctk.CTkLabel(self.sidebar, text="Conta Principal:").pack(pady=(5, 0))
         self.combo_contas = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(), width=220)
-        self.combo_contas.pack(pady=10, padx=20)
+        self.combo_contas.pack(pady=pad_y_padrao, padx=20)
         self.combo_contas._entry.bind("<KeyRelease>", self.filtrar_combo_contas)
 
         ctk.CTkLabel(self.sidebar, text="Comparar com (Opcional):").pack(pady=(5, 0))
         self.combo_contas_2 = ctk.CTkComboBox(self.sidebar, values=[], command=lambda _: self.atualizar_tela(),
                                               width=220)
         self.combo_contas_2.set("")
-        self.combo_contas_2.pack(pady=10, padx=20)
+        self.combo_contas_2.pack(pady=pad_y_padrao, padx=20)
         self.combo_contas_2._entry.bind("<KeyRelease>", self.filtrar_combo_contas_2)
 
-        ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(15, 0))
+        ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(10, 0))
         self.ent_data_inicio = ctk.CTkEntry(self.sidebar, placeholder_text="Início: 01-01-2024")
-        self.ent_data_inicio.pack(pady=5, padx=20)
+        self.ent_data_inicio.pack(pady=pad_y_padrao, padx=20)
         self.ent_data_fim = ctk.CTkEntry(self.sidebar, placeholder_text="Fim: 31-12-2024")
-        self.ent_data_fim.pack(pady=5, padx=20)
+        self.ent_data_fim.pack(pady=pad_y_padrao, padx=20)
 
         self.btn_filtrar_data = ctk.CTkButton(self.sidebar, text="Aplicar Filtro", fg_color="#27ae60",
                                               command=self.atualizar_tela)
-        self.btn_filtrar_data.pack(pady=10, padx=20)
+        self.btn_filtrar_data.pack(pady=10, padx=20)  # Botões de ação mantêm destaque
 
         self.btn_limpar = ctk.CTkButton(self.sidebar, text="Limpar Filtros", fg_color="#e74c3c",
                                         command=self.limpar_filtros)
-        self.btn_limpar.pack(pady=5, padx=20)
+        self.btn_limpar.pack(pady=pad_y_padrao, padx=20)
 
         self.btn_exportar = ctk.CTkButton(self.sidebar, text="Exportar Resumo (PDF)", fg_color="#8e44ad",
                                           command=self.acao_exportar_pdf)
-        self.btn_exportar.pack(pady=5, padx=20)
+        self.btn_exportar.pack(pady=pad_y_padrao, padx=20)
 
-        self.lbl_creditos = ctk.CTkLabel(self, text="Desenvolvido pela GCO",
+        # 3. Rodapé Fixo (Linha 1 do Container)
+        # Ao usar grid no container, ele nunca sobrepõe o menu, nem quando a tela encolhe
+        self.lbl_creditos = ctk.CTkLabel(self.left_container, text="Desenvolvido pela GCO",
                                          font=("Arial", 10, "italic"),
                                          fg_color="transparent")
-        self.lbl_creditos.place(relx=0.01, rely=0.99, anchor="sw")
+        self.lbl_creditos.grid(row=1, column=0, pady=10, sticky="s")
 
+        # --- ÁREA PRINCIPAL ---
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
