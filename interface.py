@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 import io
+import threading  # Import necessário para não travar a tela
 from PIL import Image
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -98,13 +99,11 @@ class AppBalancete(ctk.CTk):
         # Data Início
         self.ent_data_inicio = ctk.CTkEntry(self.frame_datas, placeholder_text="01-01-2024", width=105)
         self.ent_data_inicio.pack(side="left", padx=(0, 10))
-        # Bind para máscara
         self.ent_data_inicio.bind("<KeyRelease>", lambda event: self._formatar_data_entry(event, self.ent_data_inicio))
 
         # Data Fim
         self.ent_data_fim = ctk.CTkEntry(self.frame_datas, placeholder_text="31-12-2024", width=105)
         self.ent_data_fim.pack(side="left")
-        # Bind para máscara
         self.ent_data_fim.bind("<KeyRelease>", lambda event: self._formatar_data_entry(event, self.ent_data_fim))
 
         self.btn_filtrar_data = ctk.CTkButton(self.sidebar, text="Aplicar Filtro", fg_color="#27ae60",
@@ -139,21 +138,17 @@ class AppBalancete(ctk.CTk):
         self.txt_detalhamento.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         self.txt_detalhamento.configure(state="disabled")
 
+    # --- FORMATACAO DATA ---
     def _formatar_data_entry(self, event, widget):
-        # Permite apagar sem forçar a máscara
         if event.keysym.lower() == "backspace":
             return
-
-        # Pega apenas números
         texto_atual = widget.get()
         apenas_numeros = ''.join(filter(str.isdigit, texto_atual))
 
-        # Limita a 8 dígitos (ddmmyyyy)
         if len(apenas_numeros) > 8:
             apenas_numeros = apenas_numeros[:8]
 
         novo_texto = ""
-        # Aplica a máscara dd-mm-yyyy
         if len(apenas_numeros) > 4:
             novo_texto = f"{apenas_numeros[:2]}-{apenas_numeros[2:4]}-{apenas_numeros[4:]}"
         elif len(apenas_numeros) > 2:
@@ -161,11 +156,11 @@ class AppBalancete(ctk.CTk):
         else:
             novo_texto = apenas_numeros
 
-        # Atualiza o widget apenas se houve mudança para evitar loop/cursor estranho
         if texto_atual != novo_texto:
             widget.delete(0, "end")
             widget.insert(0, novo_texto)
 
+    # --- FILTROS DINAMICOS ---
     def adicionar_bloco_filtro(self):
         if len(self.blocos_filtros) >= 4:
             return
@@ -256,25 +251,82 @@ class AppBalancete(ctk.CTk):
         self.ent_data_fim.delete(0, 'end')
         self.atualizar_tela()
 
+    # --- LOADING E THREADING ---
+
+    def exibir_tela_carregamento(self):
+        """Cria uma janela TopLevel para indicar carregamento"""
+        self.loading_window = ctk.CTkToplevel(self)
+        self.loading_window.title("Carregando...")
+        self.loading_window.geometry("300x120")
+        self.loading_window.resizable(False, False)
+
+        # Tenta centralizar em relação à tela principal
+        x = self.winfo_x() + (self.winfo_width() // 2) - 150
+        y = self.winfo_y() + (self.winfo_height() // 2) - 60
+        self.loading_window.geometry(f"+{x}+{y}")
+
+        # Garante que a janela fique no topo e modal
+        self.loading_window.transient(self)
+        self.loading_window.grab_set()
+
+        lbl_msg = ctk.CTkLabel(self.loading_window, text="Processando dados...\nPor favor, aguarde.",
+                               font=("Arial", 14))
+        lbl_msg.pack(pady=20)
+
+        # Barra de progresso indeterminada
+        progress = ctk.CTkProgressBar(self.loading_window, mode="indeterminate", width=200)
+        progress.pack(pady=10)
+        progress.start()
+
+    def fechar_tela_carregamento(self):
+        if hasattr(self, 'loading_window') and self.loading_window.winfo_exists():
+            self.loading_window.grab_release()
+            self.loading_window.destroy()
+
     def acao_upload(self):
+        """Inicia o processo de upload com thread"""
         caminho = filedialog.askopenfilename(filetypes=[("Arquivos de Dados", "*.xlsx *.xls *.csv")])
         if caminho:
-            try:
-                self.logica.carregar_arquivo(caminho)
-                self.todas_contas = self.logica.obter_lista_contas_combinada()
-                lista_planos = ["Todos"] + self.logica.obter_lista_planos()
+            self.exibir_tela_carregamento()
+            # Inicia thread para não travar a GUI
+            thread = threading.Thread(target=self._thread_carga, args=(caminho,))
+            thread.start()
 
-                for bloco in self.blocos_filtros:
-                    bloco["plano"].configure(values=lista_planos)
-                    bloco["plano"].set("Todos")
-                    bloco["conta"].configure(values=self.todas_contas)
-                    if self.todas_contas:
-                        bloco["conta"].set(self.todas_contas[0])
+    def _thread_carga(self, caminho):
+        """Executada em segundo plano"""
+        try:
+            self.logica.carregar_arquivo(caminho)
+            # Agenda atualização da UI na thread principal
+            self.after(0, self._pos_carga_sucesso)
+        except Exception as e:
+            # Agenda exibição do erro na thread principal
+            self.after(0, lambda: self._pos_carga_erro(e))
 
-                self.atualizar_tela()
-                messagebox.showinfo("Sucesso", "Dados importados!")
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro: {e}")
+    def _pos_carga_sucesso(self):
+        """Atualiza a UI após sucesso"""
+        self.fechar_tela_carregamento()
+        try:
+            self.todas_contas = self.logica.obter_lista_contas_combinada()
+            lista_planos = ["Todos"] + self.logica.obter_lista_planos()
+
+            for bloco in self.blocos_filtros:
+                bloco["plano"].configure(values=lista_planos)
+                bloco["plano"].set("Todos")
+                bloco["conta"].configure(values=self.todas_contas)
+                if self.todas_contas:
+                    bloco["conta"].set(self.todas_contas[0])
+
+            self.atualizar_tela()
+            messagebox.showinfo("Sucesso", "Dados importados com sucesso!")
+        except Exception as e:
+            messagebox.showerror("Erro de UI", f"Erro ao atualizar interface: {e}")
+
+    def _pos_carga_erro(self, erro):
+        """Exibe erro após falha na thread"""
+        self.fechar_tela_carregamento()
+        messagebox.showerror("Erro", f"Falha ao carregar arquivo:\n{erro}")
+
+    # --- FIM DO LOADING ---
 
     def acao_converter(self):
         caminho_csv = filedialog.askopenfilename(filetypes=[("Arquivo CSV", "*.csv")])
@@ -383,8 +435,8 @@ class AppBalancete(ctk.CTk):
         fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
         self.figura_atual = fig
 
-        # Margens para comportar a legenda externa
-        fig.subplots_adjust(top=0.80, bottom=0.20)
+        # AJUSTE DE ESPAÇAMENTO DO GRÁFICO
+        fig.subplots_adjust(top=0.75, bottom=0.20)
 
         cores = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
         marcadores = ['o', 's', '^', 'D']
@@ -427,7 +479,7 @@ class AppBalancete(ctk.CTk):
         if len(titulo_final) > 50:
             titulo_final = "Comparativo de Múltiplas Contas"
 
-        ax.set_title(f"Evolução: {titulo_final}", fontsize=10, fontweight='bold', pad=25)
+        ax.set_title(f"Evolução: {titulo_final}", fontsize=10, fontweight='bold', pad=40)
 
         ax.legend(loc='lower left', bbox_to_anchor=(0, 1.02), fontsize=8, ncol=2, frameon=True)
 
