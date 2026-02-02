@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 import io
-import threading  # Import necessário para não travar a tela
+import threading
 from PIL import Image
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -21,7 +21,6 @@ class AppBalancete(ctk.CTk):
         super().__init__()
         self.title("Análise de Balancete Contábil")
 
-        # 1. Ajuste Responsivo Automático
         screen_height = self.winfo_screenheight()
         if screen_height < 860:
             ctk.set_widget_scaling(0.85)
@@ -31,23 +30,19 @@ class AppBalancete(ctk.CTk):
         self.logica = ProcessadorBalancete()
         self.figura_atual = None
 
-        # Lista para armazenar dicionários dos filtros
         self.blocos_filtros = []
         self.todas_contas = []
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # 2. Container Lateral (Estrutura Fixa)
         self.left_container = ctk.CTkFrame(self, width=280, corner_radius=0)
         self.left_container.grid(row=0, column=0, sticky="nsew")
         self.left_container.grid_rowconfigure(0, weight=1)
 
-        # Menu Rolável
         self.sidebar = ctk.CTkScrollableFrame(self.left_container, width=280, corner_radius=0, fg_color="transparent")
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
-        # --- ITENS DO MENU ---
         pad_y_padrao = 5 if screen_height < 800 else 10
 
         ctk.CTkLabel(self.sidebar, text="MENU PRINCIPAL", font=("Arial", 20, "bold")).pack(pady=(20, 10))
@@ -61,47 +56,37 @@ class AppBalancete(ctk.CTk):
 
         ctk.CTkLabel(self.sidebar, text="---------------------------").pack(pady=5)
 
-        # === ÁREA DE FILTROS DINÂMICOS ===
         self.container_filtros = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.container_filtros.pack(fill="x")
 
-        # Adiciona o primeiro bloco obrigatoriamente
         self.adicionar_bloco_filtro()
 
-        # === BOTÕES DE CONTROLE (+ / -) ===
         self.frame_botoes = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.frame_botoes.pack(pady=15)
 
-        # Botão Adicionar (+)
         self.btn_add = ctk.CTkButton(self.frame_botoes, text="+", width=40, height=40, corner_radius=20,
                                      font=("Arial", 24, "bold"), fg_color="#2980b9", hover_color="#3498db",
                                      command=self.adicionar_bloco_filtro)
         self.btn_add.pack(side="left", padx=10)
 
-        # Botão Remover (-)
         self.btn_remove = ctk.CTkButton(self.frame_botoes, text="-", width=40, height=40, corner_radius=20,
                                         font=("Arial", 24, "bold"), fg_color="#c0392b", hover_color="#e74c3c",
                                         command=self.remover_ultimo_bloco)
         self.btn_remove.pack(side="left", padx=10)
 
-        # Inicia desabilitado pois só tem 1 bloco
         self.btn_remove.configure(state="disabled", fg_color="gray")
 
         ctk.CTkLabel(self.sidebar, text="---------------------------").pack(pady=5)
 
-        # === PERÍODO (LAYOUT LADO A LADO E MÁSCARA) ===
         ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(5, 0))
 
-        # Container horizontal para as datas
         self.frame_datas = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.frame_datas.pack(pady=pad_y_padrao, padx=20)
 
-        # Data Início
         self.ent_data_inicio = ctk.CTkEntry(self.frame_datas, placeholder_text="01-01-2024", width=105)
         self.ent_data_inicio.pack(side="left", padx=(0, 10))
         self.ent_data_inicio.bind("<KeyRelease>", lambda event: self._formatar_data_entry(event, self.ent_data_inicio))
 
-        # Data Fim
         self.ent_data_fim = ctk.CTkEntry(self.frame_datas, placeholder_text="31-12-2024", width=105)
         self.ent_data_fim.pack(side="left")
         self.ent_data_fim.bind("<KeyRelease>", lambda event: self._formatar_data_entry(event, self.ent_data_fim))
@@ -118,13 +103,11 @@ class AppBalancete(ctk.CTk):
                                           command=self.acao_exportar_pdf)
         self.btn_exportar.pack(pady=pad_y_padrao, padx=20)
 
-        # 3. Rodapé Fixo
         self.lbl_creditos = ctk.CTkLabel(self.left_container, text="Desenvolvido pela GCO",
                                          font=("Arial", 10, "italic"),
                                          fg_color="transparent")
         self.lbl_creditos.grid(row=1, column=0, pady=10, sticky="s")
 
-        # --- ÁREA PRINCIPAL ---
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -138,7 +121,6 @@ class AppBalancete(ctk.CTk):
         self.txt_detalhamento.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         self.txt_detalhamento.configure(state="disabled")
 
-    # --- FORMATACAO DATA ---
     def _formatar_data_entry(self, event, widget):
         if event.keysym.lower() == "backspace":
             return
@@ -160,7 +142,6 @@ class AppBalancete(ctk.CTk):
             widget.delete(0, "end")
             widget.insert(0, novo_texto)
 
-    # --- FILTROS DINAMICOS ---
     def adicionar_bloco_filtro(self):
         if len(self.blocos_filtros) >= 4:
             return
@@ -251,8 +232,6 @@ class AppBalancete(ctk.CTk):
         self.ent_data_fim.delete(0, 'end')
         self.atualizar_tela()
 
-    # --- LOADING E THREADING ---
-
     def exibir_tela_carregamento(self):
         """Cria uma janela TopLevel para indicar carregamento"""
         self.loading_window = ctk.CTkToplevel(self)
@@ -260,12 +239,10 @@ class AppBalancete(ctk.CTk):
         self.loading_window.geometry("300x120")
         self.loading_window.resizable(False, False)
 
-        # Tenta centralizar em relação à tela principal
         x = self.winfo_x() + (self.winfo_width() // 2) - 150
         y = self.winfo_y() + (self.winfo_height() // 2) - 60
         self.loading_window.geometry(f"+{x}+{y}")
 
-        # Garante que a janela fique no topo e modal
         self.loading_window.transient(self)
         self.loading_window.grab_set()
 
@@ -273,7 +250,6 @@ class AppBalancete(ctk.CTk):
                                font=("Arial", 14))
         lbl_msg.pack(pady=20)
 
-        # Barra de progresso indeterminada
         progress = ctk.CTkProgressBar(self.loading_window, mode="indeterminate", width=200)
         progress.pack(pady=10)
         progress.start()
@@ -288,7 +264,6 @@ class AppBalancete(ctk.CTk):
         caminho = filedialog.askopenfilename(filetypes=[("Arquivos de Dados", "*.xlsx *.xls *.csv")])
         if caminho:
             self.exibir_tela_carregamento()
-            # Inicia thread para não travar a GUI
             thread = threading.Thread(target=self._thread_carga, args=(caminho,))
             thread.start()
 
@@ -296,10 +271,8 @@ class AppBalancete(ctk.CTk):
         """Executada em segundo plano"""
         try:
             self.logica.carregar_arquivo(caminho)
-            # Agenda atualização da UI na thread principal
             self.after(0, self._pos_carga_sucesso)
         except Exception as e:
-            # Agenda exibição do erro na thread principal
             self.after(0, lambda: self._pos_carga_erro(e))
 
     def _pos_carga_sucesso(self):
@@ -325,8 +298,6 @@ class AppBalancete(ctk.CTk):
         """Exibe erro após falha na thread"""
         self.fechar_tela_carregamento()
         messagebox.showerror("Erro", f"Falha ao carregar arquivo:\n{erro}")
-
-    # --- FIM DO LOADING ---
 
     def acao_converter(self):
         caminho_csv = filedialog.askopenfilename(filetypes=[("Arquivo CSV", "*.csv")])
@@ -435,13 +406,13 @@ class AppBalancete(ctk.CTk):
         fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
         self.figura_atual = fig
 
-        # AJUSTE DE ESPAÇAMENTO DO GRÁFICO
         fig.subplots_adjust(top=0.75, bottom=0.20)
 
         cores = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
         marcadores = ['o', 's', '^', 'D']
 
         titulo_parts = []
+        todos_valores_y = []
 
         for item in lista_dados:
             df = item["df"]
@@ -456,6 +427,8 @@ class AppBalancete(ctk.CTk):
             x = df_plot.iloc[:, 0]
             y = df_plot.iloc[:, 8]
 
+            todos_valores_y.extend(y.tolist())
+
             legenda = f"{conta.split(' - ')[0]} ({plano})"
             titulo_parts.append(conta.split(' - ')[0])
 
@@ -467,6 +440,18 @@ class AppBalancete(ctk.CTk):
                 ax.annotate(f'{label_valor:,.1f}K'.replace(',', 'X').replace('.', ',').replace('X', '.'),
                             (vx, vy), textcoords="offset points", xytext=(0, offset), ha='center',
                             fontsize=8, fontweight='bold', color=cor)
+
+        if todos_valores_y:
+            max_y = max(todos_valores_y)
+            min_y = min(todos_valores_y)
+
+            # Calcula uma margem segura (20% da amplitude)
+            amplitude = max_y - min_y
+            if amplitude == 0: amplitude = abs(max_y) * 0.2 if max_y != 0 else 100
+
+            margem_superior = max_y + (amplitude * 0.25)
+
+            ax.set_ylim(top=margem_superior)
 
         def mil_format(x, pos=None):
             if abs(x) >= 1000:
