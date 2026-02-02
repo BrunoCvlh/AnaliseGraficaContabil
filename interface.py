@@ -2,10 +2,12 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import threading
 import os
-# Módulos do projeto
+# Módulos da Raiz (Modelos e Utilitários)
 from logica import ProcessadorBalancete
 from utilitarios import converter_csv_para_excel
-# Novos Módulos Reorganizados
+
+# --- AQUI ESTÁ A MUDANÇA ---
+# Importando os módulos de dentro da pasta 'views'
 from views.graficos import GerenciadorGrafico
 from views.relatorios import GeradorRelatorio
 from views.componentes import LoadingPopup, GerenciadorFiltros
@@ -22,7 +24,7 @@ class AppBalancete(ctk.CTk):
 
         # Estado da Aplicação
         self.logica = ProcessadorBalancete()
-        self.grafico_manager = None  # Será iniciado após criar a interface
+        self.grafico_manager = None
         self.loading = LoadingPopup(self)
         self.blocos_filtros = []
         self.todas_contas = []
@@ -111,7 +113,6 @@ class AppBalancete(ctk.CTk):
         self.graph_frame = ctk.CTkFrame(self.main_frame, fg_color="#F0F0F0")
         self.graph_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
-        # Inicializa o gerenciador de gráficos com o frame criado
         self.grafico_manager = GerenciadorGrafico(self.graph_frame)
 
         self.txt_detalhamento = ctk.CTkTextbox(self.main_frame, font=("Courier New", 13))
