@@ -2,12 +2,8 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import threading
 import os
-# Módulos da Raiz (Modelos e Utilitários)
 from logica import ProcessadorBalancete
 from utilitarios import converter_csv_para_excel
-
-# --- AQUI ESTÁ A MUDANÇA ---
-# Importando os módulos de dentro da pasta 'views'
 from views.graficos import GerenciadorGrafico
 from views.relatorios import GeradorRelatorio
 from views.componentes import LoadingPopup, GerenciadorFiltros
@@ -22,7 +18,6 @@ class AppBalancete(ctk.CTk):
         self.title("Análise de Balancete Contábil")
         self._configurar_janela()
 
-        # Estado da Aplicação
         self.logica = ProcessadorBalancete()
         self.grafico_manager = None
         self.loading = LoadingPopup(self)
@@ -33,7 +28,6 @@ class AppBalancete(ctk.CTk):
         self._setup_sidebar()
         self._setup_area_principal()
 
-        # Adiciona o primeiro filtro obrigatoriamente
         self.adicionar_bloco_filtro()
 
     def _configurar_janela(self):
@@ -61,11 +55,9 @@ class AppBalancete(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="Incluir Arquivo Excel", command=self.acao_upload).pack(pady=5, padx=20)
         ctk.CTkLabel(self.sidebar, text="---------------------------").pack(pady=5)
 
-        # Container de Filtros
         self.container_filtros = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.container_filtros.pack(fill="x")
 
-        # Botões + / -
         self.frame_botoes = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.frame_botoes.pack(pady=15)
         self.btn_add = ctk.CTkButton(self.frame_botoes, text="+", width=40, height=40, corner_radius=20,
@@ -79,7 +71,6 @@ class AppBalancete(ctk.CTk):
 
         ctk.CTkLabel(self.sidebar, text="---------------------------").pack(pady=5)
 
-        # Datas
         ctk.CTkLabel(self.sidebar, text="Período (dd-mm-yyyy):", font=("Arial", 12, "bold")).pack(pady=(5, 0))
         self.frame_datas = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.frame_datas.pack(pady=5, padx=20)
@@ -99,7 +90,6 @@ class AppBalancete(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="Exportar Resumo (PDF)", fg_color="#8e44ad",
                       command=self.acao_exportar_pdf).pack(pady=5, padx=20)
 
-        # Créditos
         ctk.CTkLabel(self.left_container, text="Desenvolvido pela GCO", font=("Arial", 10, "italic"),
                      fg_color="transparent").grid(row=1, column=0, pady=10, sticky="s")
 
@@ -119,7 +109,6 @@ class AppBalancete(ctk.CTk):
         self.txt_detalhamento.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         self.txt_detalhamento.configure(state="disabled")
 
-    # --- LÓGICA DE FILTROS ---
     def adicionar_bloco_filtro(self):
         if len(self.blocos_filtros) >= 4: return
 
@@ -183,7 +172,6 @@ class AppBalancete(ctk.CTk):
             widget.delete(0, "end")
             widget.insert(0, novo)
 
-    # --- AÇÕES E EVENTOS ---
     def acao_upload(self):
         caminho = filedialog.askopenfilename(filetypes=[("Arquivos de Dados", "*.xlsx *.xls *.csv")])
         if caminho:

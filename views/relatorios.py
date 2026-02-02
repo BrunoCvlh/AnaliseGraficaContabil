@@ -17,7 +17,11 @@ class GeradorRelatorio:
             conta = item["conta"]
             plano = item["plano"]
 
-            titulo_secao = f"CONTA: {conta.split(' - ')[0]} | PLANO: {plano}"
+            # --- ALTERAÇÃO AQUI ---
+            # Antes: conta.split(' - ')[0] (Pegava só o código)
+            # Agora: conta (Exibe "Código - Nome")
+            titulo_secao = f"CONTA: {conta} | PLANO: {plano}"
+
             texto_saida = f"\n=== {titulo_secao} ===\n"
             texto_saida += header + "-" * 115 + "\n"
 

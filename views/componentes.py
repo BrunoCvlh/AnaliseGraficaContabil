@@ -12,7 +12,6 @@ class LoadingPopup:
         self.window.geometry("300x120")
         self.window.resizable(False, False)
 
-        # Centraliza
         x = self.parent.winfo_x() + (self.parent.winfo_width() // 2) - 150
         y = self.parent.winfo_y() + (self.parent.winfo_height() // 2) - 60
         self.window.geometry(f"+{x}+{y}")
@@ -52,7 +51,6 @@ class GerenciadorFiltros:
                                       width=220)
         combo_conta.pack(pady=5, padx=20)
 
-        # Seta a primeira conta se disponível
         if lista_contas:
             combo_conta.set(lista_contas[0])
 
